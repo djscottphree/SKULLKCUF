@@ -1,0 +1,25 @@
+
+# Update Linux & install base apps for personal use
+sudo apt update && sudo apt upgrade -y && 
+sudo apt dist-upgrade -y && sudo apt autoremove -y && 
+sudo apt install -y mixxx lmms audacious gimp qbittorrent kdenlive gparted neofetch cmatrix timeshift konsole gnome-disk-utility firefox-esr -y ||
+true
+
+# Create typical home folders if they don't exist
+mkdir -p ~/Downloads ~/Documents ~/Pictures ~/Videos ~/Music
+
+# Set dark mode for KDE Plasma
+kwriteconfig5 --file ~/.config/kdeglobals --group "General" --key "ColorScheme" "BreezeDark"
+kwriteconfig5 --file ~/.config/kdeglobals --group "Icons" --key "Theme" "Breeze-dark"
+
+# Disable system sounds for KDE Plasma
+kwriteconfig5 --file ~/.config/kwalletrc --group "Wallet" --key "First Use" "false"
+kwriteconfig5 --file ~/.config/kwalletrc --group "Wallet" --key "Enabled" "false"
+
+# Add network locations for easy access
+echo -e '<!DOCTYPE xbel>\n<xbel>' > ~/.local/share/user-places.xbel
+echo -e '<bookmark href="smb://thailazarus" icon="network-workgroup" visited="yes">\n<title>Thailazarus</title>\n</bookmark>' >> ~/.local/share/user-places.xbel
+echo -e '<bookmark href="smb://jollyroger" icon="network-workgroup" visited="yes">\n<title>Jollyroger</title>\n</bookmark>' >> ~/.local/share/user-places.xbel
+
+#Set Neofetch to run every time I open terminal
+echo 'neofetch' >> ~/.bashrc
