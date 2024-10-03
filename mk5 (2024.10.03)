@@ -1,0 +1,259 @@
+#!/bin/bash
+
+#OKAY SO THIS ONE I COMPILED MYSELF TO ASSIST IN POST-INSTALL OS SETUP
+
+# Update and upgrade packages
+echo "Updating package list..."
+sudo apt update && sudo apt upgrade -y
+
+# Install necessary packages
+echo "Installing required packages..."
+sudo apt install ssh -y
+# sudo apt-get install lightdm -y
+
+# Enable/Start SSH
+sudo systemctl enable ssh
+sudo systemctl start ssh
+
+# Install additional packages
+echo "Installing other necessary packages..."
+
+# sudo raspi-config
+#    Select 1 then Boot Options.
+#    Choose Desktop / CLI.
+#    Select Desktop.
+#    Choose KDE Plasma Desktop.
+
+# Backup the current APT sources
+sudo cp /etc/apt/sources.list /etc/apt/sources.list.backup
+sudo cp /etc/apt/sources.list.d/* /etc/apt/sources.list.d/*.backup 2>/dev/null
+
+# Remove duplicate entries in /etc/apt/sources.list
+sudo awk '!seen[$0]++' /etc/apt/sources.list > /tmp/cleaned_sources.list
+sudo mv /tmp/cleaned_sources.list /etc/apt/sources.list
+
+# Remove duplicate entries in /etc/apt/sources.list.d/*.list
+for file in /etc/apt/sources.list.d/*.list; do
+    sudo awk '!seen[$0]++' "$file" > "/tmp/cleaned_$(basename "$file")"
+    sudo mv "/tmp/cleaned_$(basename "$file")" "$file"
+done
+
+echo "Duplicate repository entries removed and backups created."
+
+echo "Installing other necessary packages..."
+sudo apt install -y mixxx lmms audacious gimp qbittorrent kdenlive gparted neofetch cmatrix timeshift konsole gnome-disk-utility gedit variety flameshot conky-all -y ||
+true
+
+# Create typical home folders if they don't exist
+mkdir -p ~/Downloads ~/Documents ~/Pictures ~/Videos ~/Music
+
+# Disable system sounds for KDE Plasma
+kwriteconfig5 --file ~/.config/kwalletrc --group "Wallet" --key "First Use" "false"
+kwriteconfig5 --file ~/.config/kwalletrc --group "Wallet" --key "Enabled" "false"
+
+# Add network locations for easy access
+echo -e '<!DOCTYPE xbel>\n<xbel>' > ~/.local/share/user-places.xbel
+echo -e '<bookmark href="smb://thailazarus" icon="network-workgroup" visited="yes">\n<title>Thailazarus</title>\n</bookmark>' >> ~/.local/share/user-places.xbel
+echo -e '<bookmark href="smb://jollyroger" icon="network-workgroup" visited="yes">\n<title>Jollyroger</title>\n</bookmark>' >> ~/.local/share/user-places.xbel
+
+# Set Neofetch to run every time I open terminal and remove any duplicate neofetch entries and ensure only one exists in ~/.bashrc
+grep -v "^neofetch$" ~/.bashrc > ~/.bashrc.tmp && mv ~/.bashrc.tmp ~/.bashrc
+
+# Add neofetch to ~/.bashrc if it isn't already present
+if ! grep -Fxq "neofetch" ~/.bashrc; then
+    echo "neofetch" >> ~/.bashrc
+    echo "Neofetch added to .bashrc"
+else
+    echo "Neofetch is already present in .bashrc"
+fi
+
+# Install TTF and OTF fonts from Documents to personal fonts folder
+echo "Installing fonts from Documents..."
+
+# Create personal fonts folder if it doesn't exist
+mkdir -p ~/.local/share/fonts
+
+# Find all .ttf and .otf fonts in Documents and subdirectories, and copy if they don't already exist in the fonts folder
+find ~/Documents -type f \( -iname "*.ttf" -o -iname "*.otf" \) | while read font; do
+    if [ ! -f ~/.local/share/fonts/$(basename "$font") ]; then
+        echo "Installing $(basename "$font")"
+        cp "$font" ~/.local/share/fonts/
+    else
+        echo "Skipping duplicate font $(basename "$font")"
+    fi
+done
+
+# Refresh font cache
+fc-cache -fv
+
+# Delete _fonts folder from Documents after installation
+if [ -d ~/Documents/_fonts ]; then
+    echo "Deleting _fonts folder from Documents..."
+    rm -rf ~/Documents/_fonts
+else
+    echo "No _fonts folder found in Documents."
+fi
+
+echo "Font installation and cleanup complete!"
+
+# Enable and start SSH service
+echo "Enabling and starting SSH service..."
+sudo systemctl enable ssh
+sudo systemctl start ssh
+
+# Add autostart for applications
+echo "Configuring autostart applications..."
+mkdir -p ~/.config/autostart
+
+# Conky autostart
+cat <<EOL > ~/.config/autostart/conky.desktop
+[Desktop Entry]
+Type=Application
+Exec=conky
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=Conky
+Comment=Start Conky on login
+EOL
+
+# Create a .conkyrc file and add the provided Conky configuration
+echo "Creating .conkyrc file..."
+
+cat <<EOL > ~/.conkyrc
+-- Conky, a system monitor https://github.com/brndnmtthws/conky
+--
+-- This configuration file is Lua code. You can write code in here, and it will
+-- execute when Conky loads. You can use it to generate your own advanced
+-- configurations.
+--
+-- Try this (remove the `--`):
+--
+--   print("Loading Conky config")
+--
+-- For more on Lua, see:
+-- https://www.lua.org/pil/contents.html
+
+conky.config = {
+
+update_interval = 1,
+cpu_avg_samples = 2,
+net_avg_samples = 2,
+out_to_console = false,
+override_utf8_locale = true,
+double_buffer = true,
+no_buffers = true,
+text_buffer_size = 32768,
+imlib_cache_size = 0,
+own_window = true,
+own_window_type = 'normal',
+own_window_argb_visual = true,
+own_window_argb_value = 50,
+own_window_hints = 'undecorated,below,sticky,skip_taskbar,skip_pager',
+border_inner_margin = 5,
+border_outer_margin = 0,
+xinerama_head = 1,
+alignment = 'top_right',
+gap_x = 0,
+gap_y = 0,
+draw_shades = false,
+draw_outline = false,
+draw_borders = false,
+draw_graph_borders = false,
+use_xft = true,
+font = 'Ubuntu Mono:size=11',
+xftalpha = 0.8,
+uppercase = false,
+default_color = 'grey',
+own_window_colour = '#000000',
+minimum_width = 300, minimum_height = 0,
+alignment = 'middle_right',
+
+};
+conky.text = [[
+${time %H:%M:%S}${alignr}${time %A %B %d, %Y}
+${alignc}${font sans-serif:bold:size=12}<userinfohere>
+${alignc}${font abandon-normal:size=75}<computername>${font}
+
+${font}${voffset -10}
+${font sans-serif:bold:size=10}SYSTEM ${hr 2}
+${font sans-serif:normal:size=8}UbuntuStudio 24.04.1 LTS $alignr $machine
+${font sans-serif:normal:size=8}Kernel: $alignr 6.8.0-45-lowlatency
+Host:$alignr MacBookPro9,2 A1278
+Uptime:$alignr$uptime
+File System: $alignr${fs_type}, fat. exfat, apfs, ntfs, mp3, mp4, xci, x264
+Processes: $alignr ${execi 1000 ps aux | wc -l}
+${font}${voffset -15}
+${font sans-serif:bold:size=10}CPU ${hr 2}
+${font sans-serif:normal:size=8}${execi 1000 grep model /proc/cpuinfo | cut -d : -f2 | tail -1 | sed 's/\s//'}
+#${font sans-serif:normal:size=8}${cpugraph cpu1}
+CPU: ${cpu cpu1}% ${cpubar cpu1}
+${font}${voffset -15}
+${font sans-serif:bold:size=10}MEMORY ${hr 2}
+${font sans-serif:normal:size=8}RAM $alignc $mem / $memmax $alignr $memperc%
+$membar
+SWAP $alignc ${swap} / ${swapmax} $alignr ${swapperc}%
+${swapbar}
+${font}${voffset -15}
+${font sans-serif:bold:size=10}DISK USAGE ${hr 2}
+${font sans-serif:normal:size=8}ROOT $alignc ${fs_used /} / ${fs_size /} $alignr ${fs_used_perc /}%
+${fs_bar /}
+#${font sans-serif:normal:size=8}STORAGE $alignc ${fs_used /media/STORAGE} / ${fs_size /media/STORAGE} $alignr ${fs_used_perc /media/STORAGE}%
+#${fs_bar /media/STORAGE}
+${font}${voffset -15}
+${font Ubuntu:bold:size=10}NETWORK ${hr 2}
+${font sans-serif:normal:size=8}Down: ${execi 1 printf "%.2f" $(cat /sys/class/net/lo/statistics/rx_bytes | awk '{print $1 * 0.000001}') } MB/s ${alignr}Up: ${execi 1 printf "%.2f" $(cat /sys/class/net/lo/statistics/tx_bytes | awk '{print $1 * 0.000001}') } MB/s
+${color lightgray}${downspeedgraph netplan-enp1s0f0 80,130} ${alignr}${upspeedgraph netplan-enp1s0f0 80,130}
+${font}${voffset -50}${font sans-serif:bold:size=10}TOP PROCESSES ${hr 2}
+${font sans-serif:normal:size=8}Name $alignr PID   CPU%   MEM%${font sans-serif:normal:size=8}
+${top name 1} $alignr ${top pid 1} ${top cpu 1}% ${top mem 1}%
+${top name 2} $alignr ${top pid 2} ${top cpu 2}% ${top mem 2}%
+${top name 3} $alignr ${top pid 3} ${top cpu 3}% ${top mem 3}%
+${top name 4} $alignr ${top pid 4} ${top cpu 4}% ${top mem 4}%
+${top name 5} $alignr ${top pid 5} ${top cpu 5}% ${top mem 5}%
+${top name 6} $alignr ${top pid 6} ${top cpu 6}% ${top mem 6}%
+${top name 7} $alignr ${top pid 7} ${top cpu 7}% ${top mem 7}%
+${top name 8} $alignr ${top pid 8} ${top cpu 8}% ${top mem 8}%
+${top name 9} $alignr ${top pid 9} ${top cpu 9}% ${top mem 9}%
+${top name 10} $alignr ${top pid 10} ${top cpu 10}% ${top mem 10}%
+]];
+EOL
+
+echo ".conkyrc file created and configured."
+
+
+# Variety autostart
+cat <<EOL > ~/.config/autostart/variety.desktop
+[Desktop Entry]
+Type=Application
+Exec=variety
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=Variety
+Comment=Start Variety on login
+EOL
+
+# Flameshot autostart
+cat <<EOL > ~/.config/autostart/flameshot.desktop
+[Desktop Entry]
+Type=Application
+Exec=flameshot &
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=Flameshot
+Comment=Start Flameshot on login
+EOL
+
+# Ask user if they want to restart (No Enter needed)
+echo "Press 'x' to restart the system now, or any other key to exit: "
+read -n 1 choice
+if [[ "$choice" == "x" ]]; then
+    echo "Restarting the system..."
+    sudo reboot
+else
+    echo "No restart initiated."
+fi
+
+echo "Configuration complete!"
